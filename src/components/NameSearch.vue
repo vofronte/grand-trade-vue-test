@@ -11,17 +11,15 @@
         placeholder="Введите имя..."
         autocomplete="off"
         @input="handleInput"
-        @focus="showSuggestions = true"
+        @focus="showSuggestionsList"
         @blur="handleBlur"
       />
     </div>
 
     <Transition name="fade">
-      <div
-        v-if="showSuggestions && filteredNames.length > 0"
-        class="name-search__suggestions-container"
-      >
+      <div v-if="shouldShowContainer" class="name-search__suggestions-container">
         <ul
+          v-if="filteredNames.length > 0"
           id="suggestions-list"
           ref="suggestionsListRef"
           class="name-search__suggestions-list"
@@ -39,6 +37,7 @@
             {{ name }}
           </li>
         </ul>
+        <div v-else class="name-search__no-results">Ничего не найдено</div>
       </div>
     </Transition>
   </div>
@@ -50,12 +49,12 @@ import { ref, computed, watch } from 'vue'
 interface Props {
   inputId?: string
   names?: string[]
+  debounceMs?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
   inputId: () => `name-search-input-${Math.random().toString(36).substring(7)}`,
   names: () => [
-    // Список имен по умолчанию
     'Alice',
     'Bob',
     'Charlie',
@@ -88,6 +87,7 @@ const props = withDefaults(defineProps<Props>(), {
     'Юлия',
     'Ярослав',
   ],
+  debounceMs: 300,
 })
 
 const inputRef = ref<HTMLInputElement | null>(null)
@@ -95,36 +95,48 @@ const suggestionsListRef = ref<HTMLUListElement | null>(null)
 const suggestionItemsRef = ref<HTMLLIElement[]>([])
 
 const searchQuery = ref<string>('')
+const debouncedQuery = ref<string>('')
 const showSuggestions = ref<boolean>(false)
+let debounceTimer: number | undefined
 
 const filteredNames = computed<string[]>(() => {
-  const query = searchQuery.value.trim().toLowerCase()
+  // Фильтруем по debouncedQuery
+  const query = debouncedQuery.value.trim().toLowerCase()
   if (!query) {
-    return [] // Не показываем ничего, если запрос пустой
+    return []
   }
   return props.names.filter((name) => name.toLowerCase().includes(query))
 })
 
-// Скрываем список, если результат фильтрации пуст (кроме случая пустого запроса)
-watch(filteredNames, (newVal, oldVal) => {
-  if (searchQuery.value.trim() && newVal.length === 0) {
-    // Пока просто скрываем
-  } else if (newVal.length > 0) {
-    showSuggestions.value = true
-  }
-})
+// Определяем, нужно ли показывать контейнер (список или "не найдено")
+const hasNoResults = computed(
+  () => debouncedQuery.value.trim().length > 0 && filteredNames.value.length === 0,
+)
+const shouldShowContainer = computed(
+  () => showSuggestions.value && (filteredNames.value.length > 0 || hasNoResults.value),
+)
 
 const handleInput = () => {
-  // Показываем при вводе, если есть результаты
-  if (filteredNames.value.length > 0) {
-    showSuggestions.value = true
-  }
+  showSuggestions.value = true
+  clearTimeout(debounceTimer)
+  debounceTimer = window.setTimeout(() => {
+    debouncedQuery.value = searchQuery.value // Обновляем debouncedQuery после задержки
+  }, props.debounceMs)
 }
 
 const selectName = (name: string) => {
   searchQuery.value = name
+  debouncedQuery.value = name // Обновляем и debounced, чтобы список правильно скрылся/обновился
   showSuggestions.value = false
   inputRef.value?.focus()
+  clearTimeout(debounceTimer)
+}
+
+const showSuggestionsList = () => {
+  if (searchQuery.value.trim()) {
+    debouncedQuery.value = searchQuery.value // Обновляем для немедленной фильтрации
+    showSuggestions.value = true
+  }
 }
 
 const handleBlur = () => {
@@ -196,16 +208,21 @@ const handleBlur = () => {
     transition: background-color 0.2s ease;
 
     &:hover {
-      // Пока только hover
       background-color: #f0f0f0;
     }
   }
+
+  &__no-results {
+    padding: 0.75rem 1rem;
+    color: #777;
+    font-style: italic;
+    text-align: center;
+  }
 }
 
-// --- Анимация ---
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.2s ease; // Упрощенная анимация пока
+  transition: opacity 0.2s ease;
 }
 
 .fade-enter-from,
