@@ -1,7 +1,7 @@
 {
   "name": "vue-name-search-test",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.0.1",
+  "private": false,
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -41,5 +41,6 @@
     "vite-plugin-vue-devtools": "^7.7.2",
     "vitest": "^3.1.1",
     "vue-tsc": "^2.2.8"
-  }
+  },
+  "packageManager": "yarn@4.9.1"
 }
