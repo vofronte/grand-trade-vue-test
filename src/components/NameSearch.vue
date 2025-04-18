@@ -8,6 +8,7 @@
         v-model="searchQuery"
         type="text"
         class="name-search__input"
+        :class="{ 'name-search__input--with-clear': showClearButton }"
         placeholder="Введите имя..."
         autocomplete="off"
         role="combobox"
@@ -22,6 +23,15 @@
         @blur="handleBlur"
         @keydown="handleKeydown"
       />
+      <button
+        v-if="showClearButton"
+        type="button"
+        class="name-search__clear-button"
+        aria-label="Очистить поиск"
+        @click="clearSearch"
+      >
+        ×
+      </button>
     </div>
 
     <Transition name="fade">
@@ -36,17 +46,16 @@
           <li
             v-for="(name, index) in filteredNames"
             :id="`${suggestionsId}-item-${index}`"
-            :key="name"
+            :key="name.original"
             :ref="(el) => setSuggestionItemRef(el, index)"
             class="name-search__suggestion-item"
             :class="{ 'name-search__suggestion-item--highlighted': index === highlightedIndex }"
             role="option"
             :aria-selected="index === highlightedIndex"
-            @mousedown.prevent="selectName(name)"
+            @mousedown.prevent="selectName(name.original)"
             @mouseenter="highlightedIndex = index"
-          >
-            {{ name }}
-          </li>
+            v-html="name.highlighted"
+          ></li>
         </ul>
         <div v-else class="name-search__no-results">Ничего не найдено</div>
       </div>
@@ -56,6 +65,12 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, reactive, onBeforeUpdate } from 'vue'
+
+// --- Types ---
+interface NameSearchResult {
+  original: string
+  highlighted: string
+}
 
 interface Props {
   inputId?: string
@@ -119,17 +134,29 @@ onBeforeUpdate(() => {
 const searchQuery = ref<string>('')
 const debouncedQuery = ref<string>('')
 const showSuggestions = ref<boolean>(false)
-const highlightedIndex = ref<number>(-1) // Индекс подсвеченного элемента
+const highlightedIndex = ref<number>(-1)
 let debounceTimer: number | undefined
 
 const suggestionsId = computed(() => `${props.inputId}-suggestions`)
+const showClearButton = computed(() => searchQuery.value.length > 0)
 
-const filteredNames = computed<string[]>(() => {
+// Функция для подсветки совпадений
+const highlightMatch = (text: string, query: string): string => {
+  if (!query) return text
+  const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const regex = new RegExp(`(${escapedQuery})`, 'gi')
+  return text.replace(regex, '<mark class="name-search__highlight">$1</mark>')
+}
+
+const filteredNames = computed<NameSearchResult[]>(() => {
   const query = debouncedQuery.value.trim().toLowerCase()
-  if (!query) {
-    return []
-  }
-  return props.names.filter((name) => name.toLowerCase().includes(query))
+  if (!query) return []
+  return props.names
+    .filter((name) => name.toLowerCase().includes(query))
+    .map((name) => ({
+      original: name,
+      highlighted: highlightMatch(name, query),
+    }))
 })
 
 const hasNoResults = computed(
@@ -139,12 +166,10 @@ const shouldShowContainer = computed(
   () => showSuggestions.value && (filteredNames.value.length > 0 || hasNoResults.value),
 )
 
-// Сбрасываем подсветку при изменении списка
 watch(filteredNames, () => {
   highlightedIndex.value = -1
 })
 
-// Прокрутка к подсвеченному элементу
 watch(highlightedIndex, async (newIndex) => {
   if (newIndex >= 0 && showSuggestions.value) {
     await nextTick()
@@ -168,9 +193,18 @@ const selectName = (name: string) => {
   searchQuery.value = name
   debouncedQuery.value = name
   showSuggestions.value = false
-  highlightedIndex.value = -1 // Сброс индекса
+  highlightedIndex.value = -1
   inputRef.value?.focus()
   clearTimeout(debounceTimer)
+}
+
+const clearSearch = () => {
+  searchQuery.value = ''
+  debouncedQuery.value = ''
+  showSuggestions.value = false
+  highlightedIndex.value = -1
+  clearTimeout(debounceTimer)
+  inputRef.value?.focus()
 }
 
 const showSuggestionsList = () => {
@@ -182,7 +216,6 @@ const showSuggestionsList = () => {
 
 const handleBlur = () => {
   setTimeout(() => {
-    // Проверяем, не перешел ли фокус на элемент списка (из-за @mousedown)
     if (!suggestionsListRef.value?.contains(document.activeElement)) {
       showSuggestions.value = false
     }
@@ -215,10 +248,10 @@ const handleKeydown = (event: KeyboardEvent) => {
     case 'Enter':
       event.preventDefault()
       if (highlightedIndex.value >= 0) {
-        selectName(filteredNames.value[highlightedIndex.value])
+        selectName(filteredNames.value[highlightedIndex.value].original)
       }
       break
-    case 'Tab': // Закрываем список при Tab
+    case 'Tab':
       showSuggestions.value = false
       highlightedIndex.value = -1
       break
@@ -255,10 +288,35 @@ const handleKeydown = (event: KeyboardEvent) => {
       border-color 0.2s ease,
       box-shadow 0.2s ease;
 
+    &--with-clear {
+      padding-right: 2.5rem; // Место для кнопки
+    }
+
     &:focus {
       outline: none;
       border-color: #007bff;
       box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+    }
+  }
+
+  &__clear-button {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    padding: 0.25rem 0.5rem;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: #999;
+    cursor: pointer;
+    transition: color 0.2s ease;
+
+    &:hover,
+    &:focus {
+      color: #333;
+      outline: none;
     }
   }
 
@@ -289,9 +347,15 @@ const handleKeydown = (event: KeyboardEvent) => {
 
     &:hover,
     &--highlighted {
-      // Стиль для подсветки (hover и клавиатура)
       background-color: #e9ecef;
     }
+  }
+
+  // Стили для подсветки совпадения
+  :deep(.name-search__highlight) {
+    background-color: transparent;
+    font-weight: bold;
+    color: #0056b3;
   }
 
   &__no-results {
