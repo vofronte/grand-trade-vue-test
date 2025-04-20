@@ -1,4 +1,4 @@
-import { ref, computed, watch, type Ref, toRef, readonly } from 'vue'
+import { ref, computed, watch, type Ref, toRef, readonly, type ComputedRef } from 'vue'
 
 /** Результат поиска имени с оригинальным и подсвеченным вариантами */
 export interface NameSearchResult {
@@ -25,13 +25,13 @@ export interface UseNameSearchReturn {
   /** Отфильтрованные и подсвеченные имена */
   filteredNames: Readonly<Ref<NameSearchResult[]>>
   /** Флаг: показывать ли контейнер с подсказками (внутреннее состояние) */
-  showSuggestions: Readonly<Ref<boolean>>
+  showSuggestions: Ref<boolean>
   /** Флаг: был ли поиск, но результатов нет */
   hasNoResults: Readonly<Ref<boolean>>
   /** Индекс подсвеченного элемента в списке */
   highlightedIndex: Ref<number>
   /** Флаг: должен ли контейнер подсказок быть видимым (включая "нет результатов") */
-  shouldShowContainer: Readonly<Ref<boolean>>
+  shouldShowContainer: ComputedRef<boolean>
   /** Текст для анонса результатов скринридерам */
   accessibilityResultsText: Readonly<Ref<string>>
   /** Обработчик события input для поля ввода */
@@ -201,7 +201,7 @@ export function useNameSearch(options: UseNameSearchOptions): UseNameSearchRetur
   return {
     searchQuery,
     filteredNames,
-    showSuggestions: readonly(showSuggestions),
+    showSuggestions,
     hasNoResults,
     highlightedIndex,
     shouldShowContainer,
