@@ -1,4 +1,4 @@
-import { ref, computed, watch, type Ref, toRef, readonly, type ComputedRef } from 'vue'
+import { ref, computed, watch, type Ref, toRef, type ComputedRef } from 'vue'
 
 /** Результат поиска имени с оригинальным и подсвеченным вариантами */
 export interface NameSearchResult {
@@ -15,7 +15,7 @@ export interface UseNameSearchOptions {
   /** Реактивная ссылка на задержку debounce в мс */
   debounceMs: Ref<number>
   /** Callback, вызываемый при выборе имени */
-  onSelect?: (name: string) => void
+  onSelect?: (name: string | null) => void
 }
 
 /** Возвращаемое значение composable функции useNameSearch */
@@ -155,6 +155,7 @@ export function useNameSearch(options: UseNameSearchOptions): UseNameSearchRetur
     showSuggestions.value = false
     highlightedIndex.value = -1
     clearTimeout(debounceTimer)
+    onSelect?.(null)
   }
 
   const handleFocus = () => {

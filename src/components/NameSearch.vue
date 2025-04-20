@@ -139,9 +139,9 @@ const emit = defineEmits<{
   /**
    * Событие генерируется при выборе имени из списка подсказок.
    * @param e Имя события ('select')
-   * @param name Выбранное имя (string)
+   * @param name Выбранное имя (string) или null при очистке.
    */
-  (e: 'select', name: string): void
+  (e: 'select', name: string | null): void
 }>()
 
 // Refs
@@ -179,7 +179,7 @@ const {
 } = useNameSearch({
   names: toRef(props, 'names'),
   debounceMs: toRef(props, 'debounceMs'),
-  onSelect: (name: string) => {
+  onSelect: (name: string | null) => {
     emit('select', name)
   },
 })

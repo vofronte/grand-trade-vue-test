@@ -21,7 +21,7 @@ import NameSearch from './components/NameSearch.vue'
 
 const selectedName = ref<string | null>(null)
 
-const handleNameSelect = (name: string) => {
+const handleNameSelect = (name: string | null) => {
   console.log('Выбрано имя в App.vue:', name)
   selectedName.value = name
 }
