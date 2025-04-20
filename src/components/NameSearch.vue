@@ -19,7 +19,7 @@
           highlightedIndex >= 0 ? `${suggestionsId}-item-${highlightedIndex}` : undefined
         "
         @input="handleInput"
-        @focus="showSuggestionsList"
+        @focus="handleFocus"
         @blur="handleBlur"
         @keydown="handleKeydown"
       />
@@ -28,14 +28,18 @@
         type="button"
         class="name-search__clear-button"
         aria-label="Очистить поиск"
-        @click="clearSearch"
+        @click="clearSearchAndFocus"
       >
         ×
       </button>
     </div>
 
     <Transition name="fade">
-      <div v-if="shouldShowContainer" class="name-search__suggestions-container">
+      <div
+        v-if="shouldShowContainer"
+        class="name-search__suggestions-container"
+        ref="suggestionsContainerRef"
+      >
         <ul
           v-if="filteredNames.length > 0"
           :id="suggestionsId"
@@ -47,37 +51,32 @@
             v-for="(name, index) in filteredNames"
             :id="`${suggestionsId}-item-${index}`"
             :key="name.original"
-            :ref="(el) => setSuggestionItemRef(el, index)"
+            :ref="(el) => setSuggestionItemRef(el as HTMLElement, index)"
             class="name-search__suggestion-item"
             :class="{ 'name-search__suggestion-item--highlighted': index === highlightedIndex }"
             role="option"
             :aria-selected="index === highlightedIndex"
-            @mousedown.prevent="selectName(name.original)"
+            @mousedown.prevent="selectNameAndFocus(name.original)"
             @mouseenter="highlightedIndex = index"
             v-html="name.highlighted"
           ></li>
         </ul>
-        <div v-else class="name-search__no-results">Ничего не найдено</div>
+        <div v-else-if="hasNoResults" class="name-search__no-results">Ничего не найдено</div>
       </div>
     </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, reactive, onBeforeUpdate } from 'vue'
+import { ref, computed, watch, nextTick, reactive, onBeforeUpdate, toRef } from 'vue'
+import { useNameSearch } from '@/composables/useNameSearch'
 
-// --- Types ---
-interface NameSearchResult {
-  original: string
-  highlighted: string
-}
-
+// --- Props и Emits ---
 interface Props {
   inputId?: string
   names?: string[]
   debounceMs?: number
 }
-
 const props = withDefaults(defineProps<Props>(), {
   inputId: () => `name-search-input-${Math.random().toString(36).substring(7)}`,
   names: () => [
@@ -115,8 +114,13 @@ const props = withDefaults(defineProps<Props>(), {
   ],
   debounceMs: 300,
 })
+const emit = defineEmits<{
+  (e: 'select', name: string): void
+}>()
 
+// Refs
 const inputRef = ref<HTMLInputElement | null>(null)
+const suggestionsContainerRef = ref<HTMLDivElement | null>(null)
 const suggestionsListRef = ref<HTMLUListElement | null>(null)
 const suggestionItemsRefs = reactive<Record<number, HTMLLIElement | null>>({})
 
@@ -131,47 +135,62 @@ onBeforeUpdate(() => {
   }
 })
 
-const searchQuery = ref<string>('')
-const debouncedQuery = ref<string>('')
-const showSuggestions = ref<boolean>(false)
-const highlightedIndex = ref<number>(-1)
-let debounceTimer: number | undefined
+// Composables
+const {
+  searchQuery,
+  filteredNames,
+  // showSuggestions,
+  hasNoResults,
+  highlightedIndex,
+  shouldShowContainer,
+  handleInput,
+  handleKeydown,
+  handleFocus,
+  hideSuggestions,
+  selectName,
+  clearSearch,
+} = useNameSearch({
+  names: toRef(props, 'names'),
+  debounceMs: toRef(props, 'debounceMs'),
+  onSelect: (name: string) => {
+    emit('select', name)
+  },
+})
 
+// Computed
 const suggestionsId = computed(() => `${props.inputId}-suggestions`)
 const showClearButton = computed(() => searchQuery.value.length > 0)
 
-// Функция для подсветки совпадений
-const highlightMatch = (text: string, query: string): string => {
-  if (!query) return text
-  const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const regex = new RegExp(`(${escapedQuery})`, 'gi')
-  return text.replace(regex, '<mark class="name-search__highlight">$1</mark>')
+// Методы
+const focusInput = () => {
+  inputRef.value?.focus()
 }
 
-const filteredNames = computed<NameSearchResult[]>(() => {
-  const query = debouncedQuery.value.trim().toLowerCase()
-  if (!query) return []
-  return props.names
-    .filter((name) => name.toLowerCase().includes(query))
-    .map((name) => ({
-      original: name,
-      highlighted: highlightMatch(name, query),
-    }))
-})
+const clearSearchAndFocus = () => {
+  clearSearch()
+  focusInput()
+}
 
-const hasNoResults = computed(
-  () => debouncedQuery.value.trim().length > 0 && filteredNames.value.length === 0,
-)
-const shouldShowContainer = computed(
-  () => showSuggestions.value && (filteredNames.value.length > 0 || hasNoResults.value),
-)
+const selectNameAndFocus = (name: string) => {
+  selectName(name)
+  focusInput()
+}
 
-watch(filteredNames, () => {
-  highlightedIndex.value = -1
-})
+const handleBlur = () => {
+  setTimeout(() => {
+    // Проверяем активно ли еще поле ввода или список
+    const container = suggestionsContainerRef.value
+    const activeElement = document.activeElement
+    if (inputRef.value !== activeElement && !container?.contains(activeElement)) {
+      hideSuggestions()
+    }
+  }, 150)
+}
 
+// Watchers
 watch(highlightedIndex, async (newIndex) => {
-  if (newIndex >= 0 && showSuggestions.value) {
+  // Прокручиваем только если контейнер видим
+  if (newIndex >= 0 && shouldShowContainer.value) {
     await nextTick()
     const itemElement = suggestionItemsRefs[newIndex]
     itemElement?.scrollIntoView({
@@ -180,83 +199,6 @@ watch(highlightedIndex, async (newIndex) => {
     })
   }
 })
-
-const handleInput = () => {
-  showSuggestions.value = true
-  clearTimeout(debounceTimer)
-  debounceTimer = window.setTimeout(() => {
-    debouncedQuery.value = searchQuery.value
-  }, props.debounceMs)
-}
-
-const selectName = (name: string) => {
-  searchQuery.value = name
-  debouncedQuery.value = name
-  showSuggestions.value = false
-  highlightedIndex.value = -1
-  inputRef.value?.focus()
-  clearTimeout(debounceTimer)
-}
-
-const clearSearch = () => {
-  searchQuery.value = ''
-  debouncedQuery.value = ''
-  showSuggestions.value = false
-  highlightedIndex.value = -1
-  clearTimeout(debounceTimer)
-  inputRef.value?.focus()
-}
-
-const showSuggestionsList = () => {
-  if (searchQuery.value.trim()) {
-    debouncedQuery.value = searchQuery.value
-    showSuggestions.value = true
-  }
-}
-
-const handleBlur = () => {
-  setTimeout(() => {
-    if (!suggestionsListRef.value?.contains(document.activeElement)) {
-      showSuggestions.value = false
-    }
-  }, 150)
-}
-
-const handleKeydown = (event: KeyboardEvent) => {
-  const listLength = filteredNames.value.length
-
-  if (event.key === 'Escape') {
-    if (showSuggestions.value) {
-      showSuggestions.value = false
-      highlightedIndex.value = -1
-      event.preventDefault()
-    }
-    return
-  }
-
-  if (!listLength || !showSuggestions.value) return
-
-  switch (event.key) {
-    case 'ArrowDown':
-      event.preventDefault()
-      highlightedIndex.value = (highlightedIndex.value + 1) % listLength
-      break
-    case 'ArrowUp':
-      event.preventDefault()
-      highlightedIndex.value = (highlightedIndex.value - 1 + listLength) % listLength
-      break
-    case 'Enter':
-      event.preventDefault()
-      if (highlightedIndex.value >= 0) {
-        selectName(filteredNames.value[highlightedIndex.value].original)
-      }
-      break
-    case 'Tab':
-      showSuggestions.value = false
-      highlightedIndex.value = -1
-      break
-  }
-}
 </script>
 
 <style lang="scss" scoped>
@@ -289,7 +231,7 @@ const handleKeydown = (event: KeyboardEvent) => {
       box-shadow 0.2s ease;
 
     &--with-clear {
-      padding-right: 2.5rem; // Место для кнопки
+      padding-right: 2.5rem;
     }
 
     &:focus {
@@ -351,7 +293,7 @@ const handleKeydown = (event: KeyboardEvent) => {
     }
   }
 
-  // Стили для подсветки совпадения
+  // Подсветка совпадения
   :deep(.name-search__highlight) {
     background-color: transparent;
     font-weight: bold;

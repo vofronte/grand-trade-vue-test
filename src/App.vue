@@ -1,16 +1,30 @@
 <template>
   <div id="app-container">
-    <h1>Тестовое задание Grand Trade:<br />Поиск имен</h1>
-    <NameSearch />
+    <h1>
+      Тестовое задание Grand Trade:<br />
+      Поиск имен
+    </h1>
+    <NameSearch @select="handleNameSelect" />
     <div class="info">
       <p>Начните вводить имя (например, "Al", "Бо", "Ма")</p>
       <p>Используйте стрелки ↑/↓ и Enter для навигации.</p>
+      <p v-if="selectedName">
+        Выбрано имя: <strong>{{ selectedName }}</strong>
+      </p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import NameSearch from './components/NameSearch.vue'
+
+const selectedName = ref<string | null>(null)
+
+const handleNameSelect = (name: string) => {
+  console.log('Выбрано имя в App.vue:', name)
+  selectedName.value = name
+}
 </script>
 
 <style lang="scss">
