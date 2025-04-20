@@ -1,34 +1,61 @@
 import { ref, computed, watch, type Ref, toRef, readonly } from 'vue'
 
-// Типы
+/** Результат поиска имени с оригинальным и подсвеченным вариантами */
 export interface NameSearchResult {
+  /** Оригинальное имя */
   original: string
+  /** Имя с HTML-подсветкой совпадений */
   highlighted: string
 }
 
+/** Опции для composable функции useNameSearch */
 export interface UseNameSearchOptions {
+  /** Реактивная ссылка на массив имен для поиска */
   names: Ref<Readonly<string[]>>
+  /** Реактивная ссылка на задержку debounce в мс */
   debounceMs: Ref<number>
+  /** Callback, вызываемый при выборе имени */
   onSelect?: (name: string) => void
 }
 
+/** Возвращаемое значение composable функции useNameSearch */
 export interface UseNameSearchReturn {
+  /** Текущий поисковый запрос (для v-model) */
   searchQuery: Ref<string>
+  /** Отфильтрованные и подсвеченные имена */
   filteredNames: Readonly<Ref<NameSearchResult[]>>
+  /** Флаг: показывать ли контейнер с подсказками (внутреннее состояние) */
   showSuggestions: Readonly<Ref<boolean>>
+  /** Флаг: был ли поиск, но результатов нет */
   hasNoResults: Readonly<Ref<boolean>>
+  /** Индекс подсвеченного элемента в списке */
   highlightedIndex: Ref<number>
+  /** Флаг: должен ли контейнер подсказок быть видимым (включая "нет результатов") */
   shouldShowContainer: Readonly<Ref<boolean>>
+  /** Текст для анонса результатов скринридерам */
   accessibilityResultsText: Readonly<Ref<string>>
+  /** Обработчик события input для поля ввода */
   handleInput: () => void
+  /** Обработчик события keydown для поля ввода */
   handleKeydown: (event: KeyboardEvent) => void
+  /** Обработчик события focus для поля ввода */
   handleFocus: () => void
+  /** Метод для скрытия подсказок (например, при клике вне) */
   hideSuggestions: () => void
+  /** Метод для выбора имени (например, при клике на подсказку) */
   selectName: (name: string) => void
+  /** Метод для очистки поля ввода и сброса состояния */
   clearSearch: () => void
 }
 
-// Утилита для склонения
+/**
+ * Возвращает правильную форму существительного в зависимости от числа.
+ * @param number - Число.
+ * @param one - Форма для 1 (например, 'совпадение').
+ * @param two - Форма для 2, 3, 4 (например, 'совпадения').
+ * @param five - Форма для 0, 5 и более (например, 'совпадений').
+ * @returns Правильная форма существительного.
+ */
 const getNoun = (number: number, one: string, two: string, five: string): string => {
   let n = Math.abs(number)
   n %= 100
@@ -39,7 +66,13 @@ const getNoun = (number: number, one: string, two: string, five: string): string
   return five
 }
 
-export function useNameSearch(options: UseNameSearchOptions) {
+/**
+ * Composable для управления логикой поиска имен с подсказками.
+ *
+ * @param options - Опции для настройки поиска.
+ * @returns Реактивное состояние и методы для управления компонентом поиска.
+ */
+export function useNameSearch(options: UseNameSearchOptions): UseNameSearchReturn {
   const { onSelect } = options
   const names = toRef(options, 'names')
   const debounceMs = toRef(options, 'debounceMs')
@@ -76,7 +109,7 @@ export function useNameSearch(options: UseNameSearchOptions) {
     () => showSuggestions.value && (filteredNames.value.length > 0 || hasNoResults.value),
   )
 
-  // Текст для скринридера
+  /** Динамически генерируемый текст для анонса результатов поиска скринридерам. */
   const accessibilityResultsText = computed<string>(() => {
     if (!shouldShowContainer.value || !debouncedQuery.value.trim()) return '' // Показываем только когда контейнер виден и есть запрос
     const count = filteredNames.value.length
@@ -122,7 +155,6 @@ export function useNameSearch(options: UseNameSearchOptions) {
     showSuggestions.value = false
     highlightedIndex.value = -1
     clearTimeout(debounceTimer)
-    // onSelect?.('')
   }
 
   const handleFocus = () => {
@@ -168,12 +200,12 @@ export function useNameSearch(options: UseNameSearchOptions) {
 
   return {
     searchQuery,
-    filteredNames: readonly(filteredNames),
+    filteredNames,
     showSuggestions: readonly(showSuggestions),
-    hasNoResults: readonly(hasNoResults),
+    hasNoResults,
     highlightedIndex,
-    shouldShowContainer: readonly(shouldShowContainer),
-    accessibilityResultsText: readonly(accessibilityResultsText),
+    shouldShowContainer,
+    accessibilityResultsText,
     handleInput,
     handleKeydown,
     handleFocus,

@@ -78,10 +78,23 @@ import { ref, computed, watch, nextTick, reactive, onBeforeUpdate, toRef } from 
 import { useNameSearch } from '@/composables/useNameSearch'
 import vClickOutside from '@/directives/clickOutside'
 
-// --- Props и Emits ---
+// Props и Emits
 interface Props {
+  /**
+   * Уникальный идентификатор для элемента input.
+   * Используется для связи с label и атрибутами ARIA.
+   * @default Генерируется случайный ID
+   */
   inputId?: string
+  /**
+   * Массив имен для поиска.
+   * @default Предопределенный список имен
+   */
   names?: string[]
+  /**
+   * Задержка debounce в миллисекундах перед выполнением поиска.
+   * @default 300
+   */
   debounceMs?: number
 }
 const props = withDefaults(defineProps<Props>(), {
@@ -121,7 +134,13 @@ const props = withDefaults(defineProps<Props>(), {
   ],
   debounceMs: 300,
 })
+
 const emit = defineEmits<{
+  /**
+   * Событие генерируется при выборе имени из списка подсказок.
+   * @param e Имя события ('select')
+   * @param name Выбранное имя (string)
+   */
   (e: 'select', name: string): void
 }>()
 
