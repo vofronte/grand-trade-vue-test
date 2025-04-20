@@ -1,45 +1,37 @@
-# vue-name-search-test
+# Тестовое задание: Поиск имен Vue 3
 
-This template should help get you started developing with Vue 3 in Vite.
+Компонент поиска имен с подсказками. Vue 3 + TypeScript.
 
-## Recommended IDE Setup
+## Стек
 
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+- Vue 3 / Composition API
+- TypeScript
+- Vite
+- SCSS
+- Vitest
+- ESLint / Prettier / Stylelint
+- Husky / lint-staged / commitlint / Commitizen
 
-## Type Support for `.vue` Imports in TS
+## Запуск
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+**Требования:** Node.js >= 18, Yarn (или npm/pnpm)
 
-## Customize configuration
+1.  **Установка:**
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+    ```bash
+    yarn install
+    ```
 
-## Project Setup
+2.  **Запуск dev-сервера:**
+    ```bash
+    yarn dev
+    ```
+    (Обычно на `http://localhost:5173`)
 
-```sh
-npm install
-```
+## Команды
 
-### Compile and Hot-Reload for Development
-
-```sh
-npm run dev
-```
-
-### Type-Check, Compile and Minify for Production
-
-```sh
-npm run build
-```
-
-### Run Unit Tests with [Vitest](https://vitest.dev/)
-
-```sh
-npm run test:unit
-```
-
-### Lint with [ESLint](https://eslint.org/)
-
-```sh
-npm run lint
-```
+- **Тесты:** `yarn test`
+- **Линтинг:** `yarn lint` (ESLint + Stylelint)
+- **Форматирование:** `yarn format` (Prettier)
+- **Коммит:** `yarn commit` (Используйте для создания коммитов)
+- **Сборка:** `yarn build`
