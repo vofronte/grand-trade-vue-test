@@ -4,15 +4,14 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 
-// https://vite.dev/config/
+const repoName = 'grand-trade-vue-test'
+
 export default defineConfig({
-  plugins: [
-    vue(),
-    vueDevTools(),
-  ],
+  base: process.env.NODE_ENV === 'production' ? `/${repoName}/` : '/',
+  plugins: [vue(), vueDevTools()],
   resolve: {
     alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url))
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
 })
