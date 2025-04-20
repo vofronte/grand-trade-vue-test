@@ -19,12 +19,24 @@ export interface UseNameSearchReturn {
   hasNoResults: Readonly<Ref<boolean>>
   highlightedIndex: Ref<number>
   shouldShowContainer: Readonly<Ref<boolean>>
+  accessibilityResultsText: Readonly<Ref<string>>
   handleInput: () => void
   handleKeydown: (event: KeyboardEvent) => void
   handleFocus: () => void
   hideSuggestions: () => void
   selectName: (name: string) => void
   clearSearch: () => void
+}
+
+// Утилита для склонения
+const getNoun = (number: number, one: string, two: string, five: string): string => {
+  let n = Math.abs(number)
+  n %= 100
+  if (n >= 5 && n <= 20) return five
+  n %= 10
+  if (n === 1) return one
+  if (n >= 2 && n <= 4) return two
+  return five
 }
 
 export function useNameSearch(options: UseNameSearchOptions) {
@@ -63,6 +75,18 @@ export function useNameSearch(options: UseNameSearchOptions) {
   const shouldShowContainer = computed(
     () => showSuggestions.value && (filteredNames.value.length > 0 || hasNoResults.value),
   )
+
+  // Текст для скринридера
+  const accessibilityResultsText = computed<string>(() => {
+    if (!shouldShowContainer.value || !debouncedQuery.value.trim()) return '' // Показываем только когда контейнер виден и есть запрос
+    const count = filteredNames.value.length
+    if (count > 0) {
+      return `Найдено ${count} ${getNoun(count, 'совпадение', 'совпадения', 'совпадений')}. Используйте стрелки для навигации.`
+    } else if (hasNoResults.value) {
+      return 'Ничего не найдено.'
+    }
+    return ''
+  })
 
   watch(filteredNames, () => {
     highlightedIndex.value = -1
@@ -149,6 +173,7 @@ export function useNameSearch(options: UseNameSearchOptions) {
     hasNoResults: readonly(hasNoResults),
     highlightedIndex,
     shouldShowContainer: readonly(shouldShowContainer),
+    accessibilityResultsText: readonly(accessibilityResultsText),
     handleInput,
     handleKeydown,
     handleFocus,

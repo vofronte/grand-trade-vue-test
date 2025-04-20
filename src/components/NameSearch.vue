@@ -1,5 +1,5 @@
 <template>
-  <div class="name-search">
+  <div class="name-search" ref="searchContainerRef" v-click-outside="handleClickOutside">
     <label :for="inputId" class="name-search__label">Поиск имени:</label>
     <div class="name-search__input-wrapper">
       <input
@@ -15,6 +15,7 @@
         aria-autocomplete="list"
         :aria-expanded="shouldShowContainer"
         :aria-controls="suggestionsId"
+        :aria-owns="suggestionsId"
         :aria-activedescendant="
           highlightedIndex >= 0 ? `${suggestionsId}-item-${highlightedIndex}` : undefined
         "
@@ -34,6 +35,10 @@
       </button>
     </div>
 
+    <div aria-live="polite" role="status" class="visually-hidden">
+      {{ accessibilityResultsText }}
+    </div>
+
     <Transition name="fade">
       <div
         v-if="shouldShowContainer"
@@ -46,6 +51,7 @@
           ref="suggestionsListRef"
           class="name-search__suggestions-list"
           role="listbox"
+          :aria-label="`Подсказки по именам для ${searchQuery}`"
         >
           <li
             v-for="(name, index) in filteredNames"
@@ -70,6 +76,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, reactive, onBeforeUpdate, toRef } from 'vue'
 import { useNameSearch } from '@/composables/useNameSearch'
+import vClickOutside from '@/directives/clickOutside'
 
 // --- Props и Emits ---
 interface Props {
@@ -119,6 +126,7 @@ const emit = defineEmits<{
 }>()
 
 // Refs
+const searchContainerRef = ref<HTMLDivElement | null>(null)
 const inputRef = ref<HTMLInputElement | null>(null)
 const suggestionsContainerRef = ref<HTMLDivElement | null>(null)
 const suggestionsListRef = ref<HTMLUListElement | null>(null)
@@ -139,10 +147,10 @@ onBeforeUpdate(() => {
 const {
   searchQuery,
   filteredNames,
-  // showSuggestions,
   hasNoResults,
   highlightedIndex,
   shouldShowContainer,
+  accessibilityResultsText,
   handleInput,
   handleKeydown,
   handleFocus,
@@ -176,15 +184,16 @@ const selectNameAndFocus = (name: string) => {
   focusInput()
 }
 
+const handleClickOutside = () => {
+  hideSuggestions()
+}
+
 const handleBlur = () => {
   setTimeout(() => {
-    // Проверяем активно ли еще поле ввода или список
-    const container = suggestionsContainerRef.value
-    const activeElement = document.activeElement
-    if (inputRef.value !== activeElement && !container?.contains(activeElement)) {
+    if (!searchContainerRef.value?.contains(document.activeElement)) {
       hideSuggestions()
     }
-  }, 150)
+  }, 50)
 }
 
 // Watchers
@@ -202,6 +211,17 @@ watch(highlightedIndex, async (newIndex) => {
 </script>
 
 <style lang="scss" scoped>
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
 .name-search {
   position: relative;
   width: 100%;
