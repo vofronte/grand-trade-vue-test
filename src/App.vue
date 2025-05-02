@@ -1,9 +1,6 @@
 <template>
   <div id="app-container">
-    <h1>
-      Тестовое задание Grand Trade:<br />
-      Поиск имен
-    </h1>
+    <h1>Поиск имен Vue.js</h1>
     <NameSearch @select="handleNameSelect" />
     <div class="info">
       <p>Начните вводить имя (например, "Al", "Бо", "Ма")</p>
